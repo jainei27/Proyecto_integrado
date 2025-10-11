@@ -2,34 +2,94 @@ import 'package:flutter/material.dart';
 
 void main() => runApp(const AppBarApp());
 
-class AppBarApp extends StatelessWidget {
+class AppBarApp extends StatefulWidget {
   const AppBarApp({super.key});
 
   @override
+  State<AppBarApp> createState() => _AppBarAppState();
+}
+
+class _AppBarAppState extends State<AppBarApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+  Color _seedColor = const Color.fromRGBO(22, 221, 122, 1);
+  bool _showElevation = true;
+
+  final List<Color> _palette = [
+    const Color.fromRGBO(22, 221, 122, 1),
+    Colors.deepPurple,
+    Colors.teal,
+    Colors.indigo,
+    Colors.orange,
+  ];
+
+  void _toggleThemeMode(bool value) {
+    setState(() {
+      _themeMode = value ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  void _toggleElevation(bool value) {
+    setState(() {
+      _showElevation = value;
+    });
+  }
+
+  void _cycleColor() {
+    setState(() {
+      final currentIndex = _palette.indexWhere((c) => c.value == _seedColor.value);
+      final nextIndex = (currentIndex + 1) % _palette.length;
+      _seedColor = _palette[nextIndex];
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final ThemeData light = ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: _seedColor, brightness: Brightness.light),
+      useMaterial3: true,
+      appBarTheme: AppBarTheme(backgroundColor: _seedColor, foregroundColor: Colors.white),
+      scaffoldBackgroundColor: _seedColor.withOpacity(0.04),
+    );
+
+    final ThemeData dark = ThemeData(
+      colorScheme: ColorScheme.fromSeed(seedColor: _seedColor, brightness: Brightness.dark),
+      useMaterial3: true,
+      appBarTheme: AppBarTheme(backgroundColor: _seedColor, foregroundColor: Colors.white),
+      scaffoldBackgroundColor: Colors.black,
+    );
+
     return MaterialApp(
       title: 'Inmortal king',
-      debugShowCheckedModeBanner: false, // 🔹 quita la etiqueta "DEBUG"
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color.fromRGBO(22, 221, 122, 1), // 🔹 color principal de la app
-          brightness: Brightness.light, // 🔹 modo claro
-        ),
-        useMaterial3: true, // 🔹 diseño Material 3 (más moderno)
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color.fromARGB(255, 38, 197, 157), // 🔹 AppBar azul
-          foregroundColor: Colors.white, // 🔹 texto e íconos blancos
-          elevation: 3, // 🔹 pequeña sombra debajo del AppBar
-          centerTitle: false,
-        ),
+      debugShowCheckedModeBanner: false,
+      theme: light,
+      darkTheme: dark,
+      themeMode: _themeMode,
+      home: AppBarExample(
+        onToggleTheme: _toggleThemeMode,
+        onToggleElevation: _toggleElevation,
+        onChangeColor: _cycleColor,
+        seedColor: _seedColor,
+        showElevation: _showElevation,
       ),
-      home: const AppBarExample(),
     );
   }
 }
 
 class AppBarExample extends StatefulWidget {
-  const AppBarExample({super.key});
+  const AppBarExample({
+    super.key,
+    required this.onToggleTheme,
+    required this.onToggleElevation,
+    required this.onChangeColor,
+    required this.seedColor,
+    required this.showElevation,
+  });
+
+  final ValueChanged<bool> onToggleTheme;
+  final ValueChanged<bool> onToggleElevation;
+  final VoidCallback onChangeColor;
+  final Color seedColor;
+  final bool showElevation;
 
   @override
   State<AppBarExample> createState() => _AppBarExampleState();
@@ -37,6 +97,24 @@ class AppBarExample extends StatefulWidget {
 
 class _AppBarExampleState extends State<AppBarExample> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      setState(() {
+        _scrollOffset = _scrollController.hasClients ? _scrollController.offset : 0.0;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +137,7 @@ class _AppBarExampleState extends State<AppBarExample> {
               leading: const Icon(Icons.home),
               title: const Text('Inicio'),
               onTap: () {
-                Navigator.pop(context); // cierra el drawer
+                Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Inicio seleccionado'),
@@ -130,7 +208,6 @@ class _AppBarExampleState extends State<AppBarExample> {
         ),
       ),
       appBar: AppBar(
-        // Icono o logo a la izquierda usando la propiedad `leading` que abre el Drawer
         leading: IconButton(
           icon: const Icon(Icons.menu),
           tooltip: 'Menu',
@@ -138,43 +215,50 @@ class _AppBarExampleState extends State<AppBarExample> {
             _scaffoldKey.currentState?.openDrawer();
           },
         ),
-        title: const Text('Simba'),
+        // Mostrar título y el valor de scroll (scrolledUnderElevation)
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            const Text('Simba'),
+            Text(
+              'scrolledUnderElevation: ${_scrollOffset.toStringAsFixed(1)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        elevation: widget.showElevation ? (_scrollOffset > 0 ? 6.0 : 0.0) : 0.0,
         actions: <Widget>[
-          // 🔔 Botón 1: muestra SnackBar
+          // Botón que muestra SnackBar personalizado
           IconButton(
             icon: const Icon(Icons.add_alert),
             tooltip: 'Show Snackbar',
             onPressed: () {
-              // SnackBar personalizado: texto en español, color y estilo
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: const Text(
-                    'Alerta personalizada',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  backgroundColor: Colors.deepPurple, // color de fondo
+                  content: Text('Alerta personalizada - scroll: ${_scrollOffset.toStringAsFixed(1)}'),
+                  backgroundColor: widget.seedColor, // usar color actual
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  action: SnackBarAction(
-                    label: 'Deshacer',
-                    textColor: Colors.yellow,
-                    onPressed: () {
-                      // Acción de ejemplo para el botón del SnackBar
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    },
-                  ),
-                  duration: const Duration(seconds: 3),
                 ),
               );
             },
           ),
 
-          // ➡️ Botón 2: navega a otra página
+          // Botón para cambiar color dinámicamente
+          IconButton(
+            icon: const Icon(Icons.color_lens),
+            tooltip: 'Cambiar color',
+            onPressed: () {
+              widget.onChangeColor();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Color cambiado'),
+                  backgroundColor: widget.seedColor,
+                ),
+              );
+            },
+          ),
+
+          // Navegar a la siguiente página
           IconButton(
             icon: const Icon(Icons.navigate_next),
             tooltip: 'Go to the next page',
@@ -191,7 +275,41 @@ class _AppBarExampleState extends State<AppBarExample> {
           ),
         ],
       ),
+      // BottomAppBar con switches para modo oscuro y sombra
+      bottomNavigationBar: BottomAppBar(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: <Widget>[
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.dark_mode),
+                  const SizedBox(width: 8),
+                  const Text('Modo oscuro'),
+                  Switch(
+                    value: Theme.of(context).brightness == Brightness.dark,
+                    onChanged: (v) => widget.onToggleTheme(v),
+                  ),
+                ],
+              ),
+              Row(
+                children: <Widget>[
+                  const Icon(Icons.layers),
+                  const SizedBox(width: 8),
+                  const Text('Sombra AppBar'),
+                  Switch(
+                    value: widget.showElevation,
+                    onChanged: (v) => widget.onToggleElevation(v),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
       body: SingleChildScrollView(
+        controller: _scrollController,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
           child: Column(
@@ -226,6 +344,43 @@ class _AppBarExampleState extends State<AppBarExample> {
                 'Tu compañero fiel para gestionar contenido. Explora las opciones desde el menú.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 24),
+
+              // Grid de items con iconos y opacidad
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 3,
+                children: List<Widget>.generate(4, (int index) {
+                  final icons = [Icons.photo, Icons.map, Icons.message, Icons.settings];
+                  return Opacity(
+                    opacity: 0.9,
+                    child: Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      child: InkWell(
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Item ${index + 1} seleccionado')),
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          child: Row(
+                            children: <Widget>[
+                              Icon(icons[index], color: Theme.of(context).colorScheme.primary),
+                              const SizedBox(width: 12),
+                              Text('Item ${index + 1}'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
               ),
               const SizedBox(height: 24),
 
